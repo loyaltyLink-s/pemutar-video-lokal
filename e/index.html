@@ -1,1 +1,585 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Explorer - Pemutar Video & Gambar</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
 
+        body {
+            min-height: 100vh;
+            display: flex;
+            background-color: #121417;
+            color: #e0e0e0;
+        }
+
+        /* SCREEN LOGIN (PROTEKSI PASSWORD) */
+        .login-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: #0d0f11;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+
+        .login-box {
+            background-color: #1e2228;
+            padding: 30px;
+            border-radius: 12px;
+            border: 1px solid #2d323b;
+            text-align: center;
+            width: 90%;
+            max-width: 360px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+        }
+
+        .login-box h2 {
+            font-size: 20px;
+            margin-bottom: 8px;
+            color: #ffffff;
+        }
+
+        .login-box p {
+            font-size: 13px;
+            color: #8b95a1;
+            margin-bottom: 20px;
+        }
+
+        .login-box input[type="password"] {
+            width: 100%;
+            padding: 12px 14px;
+            background-color: #121417;
+            border: 1px solid #2d323b;
+            border-radius: 8px;
+            color: white;
+            font-size: 14px;
+            outline: none;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .login-box input[type="password"]:focus {
+            border-color: #20b2aa;
+        }
+
+        .login-box button {
+            width: 100%;
+            padding: 12px;
+            background-color: #20b2aa;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .login-box button:hover {
+            background-color: #1a9690;
+        }
+
+        .error-msg {
+            color: #e74c3c;
+            font-size: 12px;
+            margin-top: 10px;
+            display: none;
+        }
+
+        /* CONTAINER APLIKASI UTAMA */
+        .app-container {
+            display: flex;
+            width: 100%;
+            height: 100vh;
+            overflow: hidden;
+            filter: blur(10px);
+            transition: filter 0.3s ease;
+        }
+
+        .app-container.unlocked {
+            filter: blur(0);
+        }
+
+        /* SIDEBAR */
+        .sidebar {
+            width: 280px;
+            background-color: #1e2228;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid #2d323b;
+            flex-shrink: 0;
+        }
+
+        .folder-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .folder-icon-container {
+            width: 48px;
+            height: 48px;
+            background-color: #20b2aa;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .folder-icon-img {
+            width: 30px;
+            height: 30px;
+            object-fit: contain;
+        }
+
+        .folder-text-info h1 { font-size: 16px; font-weight: 600; }
+        .folder-text-info p { font-size: 12px; color: #8b95a1; }
+
+        .search-bar {
+            width: 100%;
+            padding: 10px 14px;
+            background-color: #121417;
+            border: 1px solid #2d323b;
+            border-radius: 8px;
+            color: white;
+            font-size: 13px;
+            margin-bottom: 20px;
+            outline: none;
+        }
+
+        .search-bar:focus { border-color: #20b2aa; }
+
+        .daftar-isi-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 14px;
+            color: #8b95a1;
+            font-weight: 600;
+        }
+
+        /* KONTEN UTAMA */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            background-color: #121417;
+        }
+
+        .top-bar {
+            padding: 15px 20px;
+            background-color: #1a1d22;
+            border-bottom: 1px solid #2d323b;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .path-navigation {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .btn-back {
+            background-color: #2d323b;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            display: none;
+        }
+
+        #current-path-display {
+            font-size: 15px;
+            font-weight: 600;
+            color: #ffffff;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-action {
+            background-color: #20b2aa;
+            color: white;
+            border: none;
+            padding: 10px 14px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-action.secondary {
+            background-color: #2d323b;
+        }
+
+        .btn-logout {
+            background-color: #c0392b;
+            color: white;
+            border: none;
+            padding: 10px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .btn-icon-img {
+            width: 18px;
+            height: 18px;
+            object-fit: contain;
+        }
+
+        /* GRID MEDIA & FOLDER */
+        .content-area {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .media-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+            gap: 15px;
+        }
+
+        .grid-item {
+            background-color: #1e2228;
+            border-radius: 10px;
+            overflow: hidden;
+            cursor: pointer;
+            border: 1px solid #2d323b;
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.15s ease;
+        }
+
+        .grid-item:active { transform: scale(0.97); }
+
+        .folder-item { border-color: #20b2aa44; background-color: #1a232a; }
+        .folder-thumbnail {
+            height: 90px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #20b2aa11;
+        }
+
+        .folder-thumbnail img {
+            width: 48px;
+            height: 48px;
+            object-fit: contain;
+        }
+
+        .file-thumbnail {
+            width: 100%;
+            height: 100px;
+            position: relative;
+            background-color: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .file-thumbnail img, .file-thumbnail video {
+            width: 100%; height: 100%; object-fit: cover;
+        }
+
+        .other-icon { font-size: 36px; opacity: 0.7; }
+
+        .play-badge {
+            position: absolute;
+            width: 32px; height: 32px;
+            background: rgba(0,0,0,0.6);
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-size: 12px;
+        }
+
+        .item-info { padding: 8px 10px; background-color: #1e2228; }
+        .item-title {
+            font-size: 12px; color: #d0d0d0;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+
+        /* STATUS BAR & MODAL */
+        .status-bar {
+            padding: 10px 20px;
+            background-color: #1a1d22;
+            border-top: 1px solid #2d323b;
+            font-size: 12px; color: #8b95a1;
+            display: flex; justify-content: space-between;
+        }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: none; justify-content: center; align-items: center;
+            z-index: 1000; padding: 10px;
+        }
+
+        .modal-content { max-width: 100%; max-height: 90vh; border-radius: 8px; }
+        .close-modal {
+            position: absolute; top: 15px; right: 20px;
+            color: white; font-size: 32px; cursor: pointer; font-weight: bold;
+        }
+
+        .toast {
+            position: fixed; bottom: 60px; left: 50%;
+            transform: translateX(-50%);
+            background-color: #e74c3c; color: white;
+            padding: 10px 20px; border-radius: 20px;
+            font-size: 13px; display: none; z-index: 2000;
+        }
+
+        /* MODE PONSEL */
+        @media (max-width: 768px) {
+            .app-container { flex-direction: column; }
+            .sidebar { width: 100%; padding: 12px 15px; border-right: none; border-bottom: 1px solid #2d323b; }
+            .search-bar, .daftar-isi-header { display: none; }
+            .top-bar { padding: 10px 15px; }
+            .media-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 10px; }
+            .file-thumbnail { height: 80px; }
+            .folder-thumbnail { height: 70px; }
+            .folder-thumbnail img { width: 36px; height: 36px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- SCREEN LOGIN (KUNCI PASSWORD) -->
+    <div class="login-overlay" id="login-overlay">
+        <div class="login-box">
+            <h2>🔒 Area Terkunci</h2>
+            <p>Masukkan password untuk mengakses File Explorer.</p>
+            <form onsubmit="checkPassword(event)">
+                <input type="password" id="pass-input" placeholder="Masukkan Password..." autofocus>
+                <button type="submit">Buka Akses</button>
+            </form>
+            <div class="error-msg" id="error-msg">ada yang salah</div>
+        </div>
+    </div>
+
+    <!-- UTAMA -->
+    <div class="app-container" id="app-container">
+        <div class="sidebar">
+            <div class="folder-header">
+                <div class="folder-icon-container">
+                    <!-- Path diganti menjadi /pic/folder.png -->
+                    <img src="/pic/folder.png" alt="Folder Logo" class="folder-icon-img" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\' fill=\'%23ffffff\'><path d=\'M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z\'/></svg>'">
+                </div>
+                <div class="folder-text-info">
+                    <h1>File Explorer</h1>
+                    <p>Media & Galeri Lokal</p>
+                </div>
+            </div>
+            <input type="text" class="search-bar" id="search-input" placeholder="Cari file..." onkeyup="filterFiles()">
+            <div class="daftar-isi-header">
+                <span>DAFTAR ISI</span>
+                <span>☰</span>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="top-bar">
+                <div class="path-navigation">
+                    <button class="btn-back" id="btn-back" onclick="navigateUp()">⬅ Kembali</button>
+                    <span id="current-path-display">Pilih Folder...</span>
+                </div>
+                
+                <div class="button-group">
+                    <button class="btn-action" id="btn-restore" onclick="restoreSavedFolder()" style="display:none; background-color: #e67e22;">
+                        ⚡ Lanjutkan Folder Terakhir
+                    </button>
+                    <button class="btn-action secondary" onclick="selectNewFolder()">
+                        <!-- Path diganti menjadi /pic/folder.png -->
+                        <img src="/pic/folder.png" class="btn-icon-img" alt="Folder" onerror="this.style.display='none'"> Pilih Folder Baru
+                    </button>
+                    <!-- TOMBOL LOGOUT UNTUK PENGUJIAN -->
+                    <button class="btn-logout" onclick="logout()" title="Kunci Kembali">🔒</button>
+                </div>
+            </div>
+
+            <div class="content-area">
+                <div class="media-grid" id="media-grid">
+                    <div style="grid-column: 1/-1; text-align: center; color: #888; padding: 60px 10px;" id="initial-state">
+                        <!-- Path diganti menjadi /pic/folder.png -->
+                        <img src="/pic/folder.png" alt="Folder" style="width: 64px; height: 64px; margin-bottom: 10px; opacity: 0.8;" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\' fill=\'%2320b2aa\'><path d=\'M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z\'/></svg>'">
+                        <p id="prompt-text">Silakan pilih folder baru untuk memulai.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="status-bar">
+                <span id="status-text">Status: Siap</span>
+                <span id="count-text">0 Item</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="modal-overlay" onclick="closeModal(event)">
+        <span class="close-modal" onclick="closeModal(event)">&times;</span>
+        <video id="video-preview" class="modal-content" controls style="display:none;"></video>
+        <img id="image-preview" class="modal-content" style="display:none;" alt="Preview">
+    </div>
+
+    <div class="toast" id="toast-msg">Format file tidak didukung</div>
+
+    <script>
+        const SECRET_PASSWORD = "namamu.com";
+
+        // CEK STATUS LOGIN SAAT HALAMAN DIDOWNLOAD/DIBUKA
+        window.addEventListener('DOMContentLoaded', () => {
+            const isUnlocked = localStorage.getItem('app_is_unlocked');
+            if (isUnlocked === 'true') {
+                unlockAppDirectly();
+            }
+        });
+
+        function checkPassword(e) {
+            e.preventDefault();
+            const inputVal = document.getElementById('pass-input').value;
+            const errorMsg = document.getElementById('error-msg');
+
+            if (inputVal === SECRET_PASSWORD) {
+                // SIMPAN STATUS KE LOCAL STORAGE BIAR TERINGAT
+                localStorage.setItem('app_is_unlocked', 'true');
+                unlockAppDirectly();
+            } else {
+                errorMsg.style.display = 'block';
+                document.getElementById('pass-input').value = '';
+            }
+        }
+
+        function unlockAppDirectly() {
+            document.getElementById('login-overlay').style.display = 'none';
+            document.getElementById('app-container').classList.add('unlocked');
+            checkSavedFolderOnStart();
+        }
+
+        function logout() {
+            // HAPUS TIKET LOGIN DAN REFRESH
+            localStorage.removeItem('app_is_unlocked');
+            location.reload();
+        }
+
+        let rootDirectoryHandle = null;
+        let currentDirectoryHandle = null;
+        let pathStack = [];
+
+        const videoExtensions = ['mp4', 'webm', 'ogg', 'mov', 'mkv'];
+        const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg'];
+
+        const mediaGrid = document.getElementById('media-grid');
+        const currentPathDisplay = document.getElementById('current-path-display');
+        const btnBack = document.getElementById('btn-back');
+        const btnRestore = document.getElementById('btn-restore');
+        const promptText = document.getElementById('prompt-text');
+        const statusText = document.getElementById('status-text');
+        const countText = document.getElementById('count-text');
+        const modalOverlay = document.getElementById('modal-overlay');
+        const videoPreview = document.getElementById('video-preview');
+        const imagePreview = document.getElementById('image-preview');
+        const toastMsg = document.getElementById('toast-msg');
+
+        function openDB() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open("FolderStorageDB", 1);
+                request.onupgradeneeded = () => request.result.createObjectStore("handles");
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        async function saveFolderHandle(handle) {
+            const db = await openDB();
+            const tx = db.transaction("handles", "readwrite");
+            tx.objectStore("handles").put(handle, "lastFolder");
+        }
+
+        async function getSavedFolderHandle() {
+            const db = await openDB();
+            return new Promise((resolve) => {
+                const tx = db.transaction("handles", "readonly");
+                const req = tx.objectStore("handles").get("lastFolder");
+                req.onsuccess = () => resolve(req.result);
+                req.onerror = () => resolve(null);
+            });
+        }
+
+        async function checkSavedFolderOnStart() {
+            const savedHandle = await getSavedFolderHandle();
+            if (savedHandle) {
+                btnRestore.style.display = 'flex';
+                currentPathDisplay.textContent = `Tersimpan: ${savedHandle.name}`;
+                promptText.innerHTML = `Folder terakhir kamu: <b>"${savedHandle.name}"</b>.<br>Klik tombol <b>"Lanjutkan Folder Terakhir"</b> di kanan atas untuk langsung membukanya.`;
+            }
+        }
+
+        async function selectNewFolder() {
+            try {
+                if ('showDirectoryPicker' in window) {
+                    rootDirectoryHandle = await window.showDirectoryPicker();
+                    await saveFolderHandle(rootDirectoryHandle);
+                    btnRestore.style.display = 'none';
+                    initFolderView(rootDirectoryHandle);
+                } else {
+                    alert("Browser kamu tidak mendukung File System Access API. Gunakan Chrome/Edge versi PC.");
+                }
+            } catch (err) {
+                console.log("Pemilihan folder dibatalkan.", err);
+            }
+        }
+
+        async function restoreSavedFolder() {
+            try {
+                const savedHandle = await getSavedFolderHandle();
+                if (savedHandle) {
+                    const options = { mode: 'read' };
+                    let permission = await savedHandle.queryPermission(options);
+                    
+                    if (permission !== 'granted') {
+                        permission = await savedHandle.requestPermission(options);
+                    }
+
+                    if (permission === 'granted') {
+                        rootDirectoryHandle = savedHandle;
+                        btnRestore.style.display = 'none';
+                        initFolderView(rootDirectoryHandle);
+                    } else {
+                        alert("Izin ditolak oleh pengguna.");
+                    }
+                }
+            } catch (err) {
+                console.error(err);
+    
